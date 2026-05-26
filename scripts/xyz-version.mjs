@@ -60,6 +60,10 @@ if (arg === "--sync") {
 	console.log(`Synced: ${currentVersion} → ${newVersion}`);
 } else {
 	// Set xyz suffix
+	if (!/^\d+\.\d+$/.test(arg)) {
+		console.error(`Invalid xyz version: "${arg}". Expected format: X.Y (e.g. 0.2)`);
+		process.exit(1);
+	}
 	const xyzSuffix = arg;
 	const baseVersion = parsed ? parsed.base : readPkg(aiPkg).version;
 	const newVersion = `${baseVersion}-xyz-${xyzSuffix}`;

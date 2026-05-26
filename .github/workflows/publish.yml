@@ -40,6 +40,6 @@ jobs:
 
       - name: Publish
         working-directory: packages/coding-agent
-        run: npm publish --access public
+        run: npm publish --access public --tag xyz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
