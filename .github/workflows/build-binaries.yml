@@ -37,6 +37,12 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Fix build script for outdated lock file
+        run: |
+          # Tag's build-binaries.sh uses 'npm ci' but lock file is out of sync.
+          # Use 'npm install' instead for the tag checkout.
+          sed -i 's/npm ci --ignore-scripts/npm install --ignore-scripts/' scripts/build-binaries.sh
+
       - name: Build binaries
         run: ./scripts/build-binaries.sh
 

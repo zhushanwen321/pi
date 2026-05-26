@@ -83,7 +83,7 @@ fi
 
 if [[ "$SKIP_INSTALL" == "false" ]]; then
     echo "==> Installing dependencies..."
-    npm ci --ignore-scripts
+    npm install --ignore-scripts
 else
     echo "==> Skipping npm ci (--skip-install)"
 fi
