@@ -101,6 +101,8 @@ export interface RpcSessionState {
 	autoCompactionEnabled: boolean;
 	messageCount: number;
 	pendingMessageCount: number;
+	/** Current leaf entry ID in the session tree (null if no entries yet). */
+	leafId: string | null;
 }
 
 // ============================================================================
