@@ -1508,8 +1508,12 @@ export class AgentSession {
 	 * Saves to session and settings only if the level actually changes.
 	 */
 	setThinkingLevel(level: ThinkingLevel): void {
+		// Map 'max' → 'xhigh' — @earendil-works/pi-ai (external dep) doesn't support 'max'.
+		const mappedLevel: ThinkingLevel = (level as string) === "max" ? "xhigh" : level;
 		const availableLevels = this.getAvailableThinkingLevels();
-		const effectiveLevel = availableLevels.includes(level) ? level : this._clampThinkingLevel(level, availableLevels);
+		const effectiveLevel = availableLevels.includes(mappedLevel)
+			? mappedLevel
+			: this._clampThinkingLevel(mappedLevel, availableLevels);
 
 		// Only persist if actually changing
 		const previousLevel = this.agent.state.thinkingLevel;
