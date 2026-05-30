@@ -243,7 +243,7 @@ interface ToolDefinitionEntry {
 // ============================================================================
 
 /** Standard thinking levels */
-const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high"];
 
 // ============================================================================
 // AgentSession Class
@@ -1508,8 +1508,13 @@ export class AgentSession {
 	 * Saves to session and settings only if the level actually changes.
 	 */
 	setThinkingLevel(level: ThinkingLevel): void {
+		// Map 'max' to 'xhigh' — pi-ai (external dep) only supports up to 'xhigh'.
+		// Models with thinkingLevelMap.xhigh="max" will pass "max" to the LLM API.
+		const mappedLevel: ThinkingLevel = level === ("max" as ThinkingLevel) ? "xhigh" : level;
 		const availableLevels = this.getAvailableThinkingLevels();
-		const effectiveLevel = availableLevels.includes(level) ? level : this._clampThinkingLevel(level, availableLevels);
+		const effectiveLevel = availableLevels.includes(mappedLevel)
+			? mappedLevel
+			: this._clampThinkingLevel(mappedLevel, availableLevels);
 
 		// Only persist if actually changing
 		const previousLevel = this.agent.state.thinkingLevel;
