@@ -24,16 +24,24 @@ Fork of [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## 发版
 
+由 GitHub Actions 自动发布。触发方式：创建 GitHub Release。
+
 ```bash
 # 1. 更新版本
 #    编辑 packages/coding-agent/package.json 和 npm-shrinkwrap.json
 
-# 2. 构建
-cd packages/coding-agent && npm run build
+# 2. 推送代码
+git add -A && git commit -m "chore: bump to <version>"
+git push origin main
 
-# 3. 发布
-cd packages/coding-agent && npm publish
+# 3. 创建 GitHub Release（在 GitHub UI 上操作，或 gh CLI）：
+#    gh release create v0.78.0-xyz-0.1 --generate-notes
+#    这会自动创建 tag 并触发 Publish workflow
 ```
+
+Workflow 文件：`.github/workflows/publish.yml`（触发条件：`release: [published]`）。
+
+发布 tag：`xyz`（`npm publish --tag xyz`）。安装时需 `npm install xyz-pi@xyz`。
 
 ## Upstream Merge
 
