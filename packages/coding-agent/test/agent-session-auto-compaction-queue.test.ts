@@ -433,4 +433,55 @@ describe("AgentSession auto-compaction queue resume", () => {
 		// Should NOT compact because the only usage data is from a kept pre-compaction message
 		expect(runAutoCompactionSpy).not.toHaveBeenCalled();
 	});
+
+	// Regression for issue #5420: when overflow retry compaction produces a
+	// context that ends with an assistant message (e.g. a kept assistant turn
+	// that survived the compaction summary) and there are no queued messages to
+	// drain, _runAutoCompaction must return false so the caller loop in
+	// _runAgentPrompt does NOT invoke agent.continue() and crash.
+	it("should return false from overflow path when compacted context ends with assistant and nothing is queued", async () => {
+		const model = session.model!;
+
+		// Stub buildSessionContext so the agent's message list is rewritten to
+		// an assistant-tailed context during _runAutoCompaction. This is the
+		// exact post-compaction state that crashed the session in #5420.
+		const keptAssistant: AssistantMessage = {
+			role: "assistant",
+			content: [{ type: "text", text: "kept post-compaction assistant turn" }],
+			api: model.api,
+			provider: model.provider,
+			model: model.id,
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: Date.now(),
+		};
+		vi.spyOn(sessionManager, "buildSessionContext").mockReturnValue({
+			messages: [
+				{ role: "user", content: [{ type: "text", text: "earlier turn" }], timestamp: Date.now() - 1000 },
+				keptAssistant,
+			],
+			thinkingLevel: "off",
+			model: null,
+		});
+
+		const runAutoCompaction = (
+			session as unknown as {
+				_runAutoCompaction: (reason: "overflow" | "threshold", willRetry: boolean) => Promise<boolean>;
+			}
+		)._runAutoCompaction.bind(session);
+
+		// Sanity: nothing queued.
+		expect(session.agent.hasQueuedMessages()).toBe(false);
+
+		// Overflow retry with an assistant-tailed context and no queued messages
+		// must return false, signaling the caller to NOT invoke agent.continue().
+		await expect(runAutoCompaction("overflow", true)).resolves.toBe(false);
+	});
 });

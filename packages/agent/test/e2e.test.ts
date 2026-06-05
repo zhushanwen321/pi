@@ -271,7 +271,10 @@ describe("Agent.continue() with faux provider", () => {
 			await expect(agent.continue()).rejects.toThrow("No messages to continue from");
 		});
 
-		it("throws when last message is assistant", async () => {
+		it("is a no-op when last message is assistant and nothing is queued", async () => {
+			// Regression: after auto-compaction the rebuilt context can end with an
+			// assistant message. The caller loop in AgentSession still calls
+			// continue(); throwing here crashed the session. See issue #5420.
 			const faux = createFauxRegistration();
 			const model = faux.getModel();
 			const agent = new Agent({
@@ -300,7 +303,9 @@ describe("Agent.continue() with faux provider", () => {
 			};
 			agent.state.messages = [assistantMessage];
 
-			await expect(agent.continue()).rejects.toThrow("Cannot continue from message role: assistant");
+			// Should resolve (no throw) and not invoke the provider.
+			await agent.continue();
+			expect(agent.state.messages).toEqual([assistantMessage]);
 		});
 	});
 

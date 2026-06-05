@@ -358,7 +358,12 @@ export class Agent {
 				return;
 			}
 
-			throw new Error("Cannot continue from message role: assistant");
+			// Context ends with an assistant message and no queued messages.
+			// This happens after auto-compaction: buildSessionContext() can produce
+			// a message list whose last entry is an assistant turn, and the caller
+			// loop in AgentSession still calls continue(). Treat it as a no-op so
+			// the loop terminates cleanly instead of crashing the session.
+			return;
 		}
 
 		await this.runContinuation();

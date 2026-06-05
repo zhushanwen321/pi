@@ -72,7 +72,15 @@ export function agentLoopContinue(
 	}
 
 	if (context.messages[context.messages.length - 1].role === "assistant") {
-		throw new Error("Cannot continue from message role: assistant");
+		// Context ends with an assistant message and there is no provider call to
+		// make. This can happen after auto-compaction: buildSessionContext() can
+		// produce a message list whose last entry is an assistant turn, and the
+		// session loop still invokes continue(). Return a stream that emits only
+		// agent_end so callers receive a well-formed completion instead of an
+		// exception.
+		const stream = createAgentStream();
+		stream.push({ type: "agent_end", messages: context.messages });
+		return stream;
 	}
 
 	const stream = createAgentStream();
@@ -129,7 +137,13 @@ export async function runAgentLoopContinue(
 	}
 
 	if (context.messages[context.messages.length - 1].role === "assistant") {
-		throw new Error("Cannot continue from message role: assistant");
+		// Context ends with an assistant message and there is no provider call to
+		// make. This can happen after auto-compaction: buildSessionContext() can
+		// produce a message list whose last entry is an assistant turn, and the
+		// session loop still invokes continue(). Emit a terminal agent_end with
+		// the current messages so the caller observes a well-formed completion.
+		await emit({ type: "agent_end", messages: context.messages });
+		return context.messages;
 	}
 
 	const newMessages: AgentMessage[] = [];

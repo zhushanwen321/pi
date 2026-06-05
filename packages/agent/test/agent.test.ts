@@ -466,6 +466,43 @@ describe("Agent", () => {
 		expect(responseCount).toBe(2);
 	});
 
+	// Regression for issue #5420: auto-compaction can produce context ending with
+	// an assistant message. continue() should resolve as a no-op (not throw) so
+	// the caller loop in AgentSession terminates cleanly.
+	it("continue() is a no-op when context ends with assistant and nothing is queued", async () => {
+		let streamFnCalled = 0;
+		const agent = new Agent({
+			streamFn: () => {
+				streamFnCalled++;
+				return new MockAssistantStream();
+			},
+		});
+
+		const assistantMessage = createAssistantMessage("After compaction");
+		agent.state.messages = [
+			{
+				role: "user",
+				content: [{ type: "text", text: "Earlier turn" }],
+				timestamp: Date.now() - 10,
+			},
+			assistantMessage,
+		];
+
+		await expect(agent.continue()).resolves.toBeUndefined();
+
+		// Should not have invoked the provider.
+		expect(streamFnCalled).toBe(0);
+		// Messages are unchanged.
+		expect(agent.state.messages).toEqual([
+			{
+				role: "user",
+				content: [{ type: "text", text: "Earlier turn" }],
+				timestamp: agent.state.messages[0].timestamp,
+			},
+			assistantMessage,
+		]);
+	});
+
 	it("forwards sessionId to streamFn options", async () => {
 		let receivedSessionId: string | undefined;
 		const agent = new Agent({

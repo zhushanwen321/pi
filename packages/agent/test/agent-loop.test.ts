@@ -8,7 +8,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
-import { agentLoop, agentLoopContinue } from "../src/agent-loop.ts";
+import { agentLoop, agentLoopContinue, runAgentLoopContinue } from "../src/agent-loop.ts";
 import type { AgentContext, AgentEvent, AgentLoopConfig, AgentMessage, AgentTool } from "../src/types.ts";
 
 // Mock stream for testing - mimics MockAssistantStream
@@ -1347,5 +1347,55 @@ describe("agentLoopContinue with AgentMessage", () => {
 		const messages = await stream.result();
 		expect(messages.length).toBe(1);
 		expect(messages[0].role).toBe("assistant");
+	});
+
+	// Regression for issue #5420: auto-compaction can rebuild context ending with
+	// an assistant message. The caller loop in AgentSession still invokes
+	// continue(); throwing here crashes the session.
+	it("should not throw when context ends with assistant message (agentLoopContinue)", async () => {
+		const assistantMessage = createAssistantMessage([{ type: "text", text: "Prior assistant turn" }]);
+		const context: AgentContext = {
+			systemPrompt: "You are helpful.",
+			messages: [assistantMessage],
+			tools: [],
+		};
+		const config: AgentLoopConfig = {
+			model: createModel(),
+			convertToLlm: identityConverter,
+		};
+
+		const stream = agentLoopContinue(context, config);
+
+		const events: AgentEvent[] = [];
+		for await (const event of stream) {
+			events.push(event);
+		}
+
+		// Should emit only agent_end with the current messages; no provider call.
+		expect(events).toEqual([{ type: "agent_end", messages: [assistantMessage] }]);
+		const messages = await stream.result();
+		expect(messages).toEqual([assistantMessage]);
+	});
+
+	it("should not throw when context ends with assistant message (runAgentLoopContinue)", async () => {
+		const assistantMessage = createAssistantMessage([{ type: "text", text: "Prior assistant turn" }]);
+		const context: AgentContext = {
+			systemPrompt: "You are helpful.",
+			messages: [assistantMessage],
+			tools: [],
+		};
+		const config: AgentLoopConfig = {
+			model: createModel(),
+			convertToLlm: identityConverter,
+		};
+
+		const events: AgentEvent[] = [];
+		const messages = await runAgentLoopContinue(context, config, async (event) => {
+			events.push(event);
+		});
+
+		// Should emit only agent_end with the current messages; no provider call.
+		expect(events).toEqual([{ type: "agent_end", messages: [assistantMessage] }]);
+		expect(messages).toEqual([assistantMessage]);
 	});
 });

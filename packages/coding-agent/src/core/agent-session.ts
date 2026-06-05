@@ -2026,7 +2026,21 @@ export class AgentSession {
 				if (lastMsg?.role === "assistant" && (lastMsg as AssistantMessage).stopReason === "error") {
 					this.agent.state.messages = messages.slice(0, -1);
 				}
-				return true;
+				// Re-read messages after the slice above; report continuation only
+				// when we can actually continue (last message is not assistant, or
+				// there are queued messages to drain). Without this guard the
+				// caller loop in _runAgentPrompt would invoke agent.continue() on
+				// an assistant-tailed context and throw.
+				const updatedMessages = this.agent.state.messages;
+				const updatedLast = updatedMessages[updatedMessages.length - 1];
+				const lastIsAssistant = updatedLast?.role === "assistant";
+				const queued = this.agent.hasQueuedMessages();
+				// We can only continue if either there is a non-assistant terminal
+				// message to resume from, or there are queued messages for the
+				// agent to drain. An empty tail or an assistant tail without
+				// queued work means there is nothing for the caller loop to do.
+				const canContinue = updatedMessages.length > 0 && (!lastIsAssistant || queued);
+				return canContinue;
 			}
 
 			// Auto-compaction can complete while follow-up/steering/custom messages are waiting.
